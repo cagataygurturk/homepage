@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homepage
+spec:
+  selector:
+    matchLabels: { }
+  replicas: 2
+  template:
+    metadata:
+      labels: { }
+    spec:
+      nodeSelector:
+        topology.kubernetes.io/region: berlin
+        kubernetes.io/arch: arm64
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - homepage
+                topologyKey: "kubernetes.io/hostname"
+              weight: 100
+      containers:
+        - name: homepage
+          image: ghcr.io/cagataygurturk/homepage
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 6443
+            - containerPort: 8081
+              name: health
+          env:
+            - name: HTTPS_ONLY
+              value: "true"
+            - name: TLS_CERT_FILE
+              value: "/etc/ssl/tls.crt"
+            - name: TLS_KEY_FILE
+              value: "/etc/ssl/tls.key"
+            - name: CLIENT_CA_CERT
+              value: "/etc/ssl/ca.crt"
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: cloudflare-tls
+              mountPath: "/etc/ssl"
+              readOnly: true
+            - name: hwmon
+              mountPath: /sys/devices/platform/cooling_fan/hwmon/
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /healthz/live
+              port: 8081
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz/ready
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: hwmon
+          hostPath:
+            path: /sys/devices/platform/cooling_fan/hwmon/
+        - name: nginx
+          configMap:
+            name: nginx
+        - name: cloudflare-tls
+          secret:
+            secretName: cloudflare-tls
+            items:
+              - key: tls.crt
+                path: tls.crt
+              - key: tls.key
+                path: tls.key
+              - key: ca.crt
+                path: ca.crt

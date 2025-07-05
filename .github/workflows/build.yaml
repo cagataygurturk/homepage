@@ -1,0 +1,86 @@
+name: Build and Push Docker Image to GHCR
+
+on:
+  push:
+    branches:
+      - main
+      - rust
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-24.04-arm
+
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Define image name and tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=,suffix=,format=long
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/arm64
+
+      - uses: imranismail/setup-kustomize@v2
+
+      - run: kustomize edit set image ghcr.io/cagataygurturk/homepage=ghcr.io/${{ github.repository }}:${GITHUB_SHA}
+        working-directory: kubernetes/homepage/
+
+      - name: Install Cloudfleet CLI
+        env:
+          NONINTERACTIVE: 1
+        run: |
+          curl -fsSL https://downloads.cloudfleet.ai/apt/pubkey.gpg | tee /usr/share/keyrings/cloudfleet-archive-keyring.gpg >/dev/null
+          echo "deb [signed-by=/usr/share/keyrings/cloudfleet-archive-keyring.gpg] https://downloads.cloudfleet.ai/apt stable main" | sudo tee /etc/apt/sources.list.d/cloudfleet.list
+          sudo apt update
+          sudo apt install cloudfleet                
+
+      - name: Configure Cloudfleet CLI
+        run: cloudfleet auth add-profile token default ${{ vars.CLOUDFLEET_ORGANIZATION_ID }} ${{ vars.CLOUDFLEET_API_KEY }} ${{ secrets.CLOUDFLEET_API_SECRET }}
+
+      - name: Configure Kubeconfig
+        run: cloudfleet clusters kubeconfig ${{ vars.CLOUDFLEET_CLUSTER_ID }}
+
+      - uses: azure/setup-kubectl@v4
+        name: Setup kubectl
+
+      - run: kubectl cluster-info
+
+      - run: kubectl apply -k .
+        working-directory: kubernetes/cilium
+
+      - run: kubectl apply -k .
+        working-directory: kubernetes/homepage

@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ubuntu-test
+  namespace: homepage
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: ubuntu-test
+  template:
+
+    metadata:
+      labels:
+        app: ubuntu-test
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: rpi1
+      containers:
+      - name: ubuntu
+        image: curlimages/curl
+        command: ["/bin/sh", "-c", "sleep infinity"]
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        stdin: true
+        tty: true
+        securityContext:
+          capabilities:
+            add:
+              - NET_ADMIN
+              - SYS_ADMIN
+            drop:
+              - ALL
+          seLinuxOptions:
+            level: s0
+            type: spc_t
+      hostNetwork: true
+      securityContext:
+        appArmorProfile:
+          type: Unconfined
