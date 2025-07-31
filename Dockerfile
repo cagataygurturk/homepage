@@ -17,7 +17,7 @@ RUN mkdir src && \
     rm -f target/aarch64-unknown-linux-musl/release/homepage* && \
     rm -rf src
 
-# Now, copy the actual source code, static assets and templates
+# Now, copy the actual source code and templates
 COPY src ./src
 COPY templates ./templates
 
@@ -25,12 +25,11 @@ COPY templates ./templates
 RUN cargo build --release --target aarch64-unknown-linux-musl
 
 # Final stage
-FROM alpine:latest
+FROM gcr.io/distroless/cc-debian12:nonroot
 
 WORKDIR /app
 
-# Copy static assets
-COPY --from=builder /app/static ./static
+# Copy templates
 COPY --from=builder /app/templates ./templates
 
 # Copy the statically linked binary
@@ -39,5 +38,5 @@ COPY --from=builder --chmod=755 /app/target/aarch64-unknown-linux-musl/release/h
 # Expose ports
 EXPOSE 8080 6443 8081
 
-# Run the application in the foreground
+# Run the application
 CMD ["/app/homepage"]
