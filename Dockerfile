@@ -22,17 +22,16 @@ RUN rm -rf src
 COPY src ./src
 COPY templates ./templates
 
-# Build the actual application (only this layer rebuilds when code changes)
+# Build the actual application with static linking (only this layer rebuilds when code changes)
 RUN cargo build --release
 
-# Runtime stage - using distroless with C libraries
 FROM gcr.io/distroless/cc-debian12:nonroot
 
-# Copy the statically linked binary
-COPY --from=builder /app/target/release/homepage /homepage
+# Copy the statically linked binary with executable permissions
+COPY --from=builder --chmod=755 /app/target/release/homepage /homepage
 
 # Expose ports
 EXPOSE 8080 6443 8081
 
-# Use exec form and ensure proper signal handling
-ENTRYPOINT ["/homepage"]
+# Use CMD instead of ENTRYPOINT for easier override
+CMD ["/homepage"]
