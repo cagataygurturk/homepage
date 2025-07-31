@@ -19,7 +19,6 @@ RUN mkdir src && \
 
 # Now, copy the actual source code, static assets and templates
 COPY src ./src
-COPY static ./static
 COPY templates ./templates
 
 # Build the actual application
