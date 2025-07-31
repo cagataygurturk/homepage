@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - rust
+      - docker-fix
 
 jobs:
   build-and-push:

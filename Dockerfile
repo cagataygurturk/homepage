@@ -25,8 +25,8 @@ COPY templates ./templates
 # Build the actual application (only this layer rebuilds when code changes)
 RUN cargo build --release
 
-# Runtime stage - using distroless
-FROM gcr.io/distroless/static-debian12:nonroot
+# Runtime stage - using distroless with C libraries
+FROM gcr.io/distroless/cc-debian12:nonroot
 
 # Copy the statically linked binary
 COPY --from=builder /app/target/release/homepage /homepage
