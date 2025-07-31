@@ -1,38 +1,42 @@
 # Build stage
 FROM rust:1.80-alpine AS builder
 
-# Install build dependencies (musl target already available for current arch)
-RUN apk add --no-cache musl-dev gcc
+# Install build dependencies and MUSL target for ARM64
+RUN apk add --no-cache musl-dev gcc && \
+    rustup target add aarch64-unknown-linux-musl
 
 WORKDIR /app
 
-# Copy dependency files first
+# Copy manifests for dependency caching
 COPY Cargo.toml Cargo.lock ./
 
-# Create a dummy src/main.rs to build dependencies
-RUN mkdir src && echo "fn main() {}" > src/main.rs
+# Build only the dependencies and then remove the dummy binary to ensure a clean final build
+RUN mkdir src && \
+    echo 'fn main() {}' > src/main.rs && \
+    cargo build --release --target aarch64-unknown-linux-musl && \
+    rm -f target/aarch64-unknown-linux-musl/release/homepage* && \
+    rm -rf src
 
-# Build dependencies (this layer will be cached)
-RUN cargo build --release
-
-# Remove dummy files
-RUN rm -rf src
-
-# Copy actual source code and templates
+# Now, copy the actual source code and templates
 COPY src ./src
 COPY templates ./templates
 
-# Build the actual application (only this layer rebuilds when code changes)
-RUN cargo build --release
+# Build the actual application
+RUN cargo build --release --target aarch64-unknown-linux-musl
 
-# Runtime stage - using distroless
-FROM gcr.io/distroless/static-debian12:nonroot
+# Final stage
+FROM gcr.io/distroless/cc-debian12:nonroot
+
+WORKDIR /app
+
+# Copy templates
+COPY --from=builder /app/templates ./templates
 
 # Copy the statically linked binary
-COPY --from=builder /app/target/release/homepage /homepage
+COPY --from=builder --chmod=755 /app/target/aarch64-unknown-linux-musl/release/homepage .
 
 # Expose ports
 EXPOSE 8080 6443 8081
 
-# Use exec form and ensure proper signal handling
-ENTRYPOINT ["/homepage"]
+# Run the application
+CMD ["/app/homepage"]
