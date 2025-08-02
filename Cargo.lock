@@ -713,6 +713,7 @@ dependencies = [
  "axum",
  "axum-server",
  "chrono",
+ "lazy_static",
  "minify-html",
  "rustls",
  "rustls-pemfile 1.0.4",
