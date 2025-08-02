@@ -86,7 +86,34 @@
             }
         }
 
+        /* D3.js graph styling */
+        #cpu-graph svg {
+            font-family: Verdana, sans-serif;
+        }
+        
+        #cpu-graph .axis text {
+            font-size: 11px;
+            fill: #666;
+        }
+        
+        #cpu-graph .axis-label {
+            font-size: 12px;
+            fill: #333;
+        }
+        
+        #cpu-graph .axis path,
+        #cpu-graph .axis line {
+            fill: none;
+            stroke: #ddd;
+            stroke-width: 1;
+        }
+        
+        #cpu-graph .legend-item text {
+            font-family: Verdana, sans-serif;
+        }
+
     </style>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body>
 <div class="container">
@@ -112,6 +139,7 @@
                 temperature <span id="cpu-temperature">{{ cpu_temperature }}</span>°C, 
                 <a href="https://www.raspberrypi.com/products/active-cooler/" rel="nofollow">fan</a> speed <span id="fan-speed">{{ fan_speed }}</span> RPM.
             </p>
+            <div id="cpu-graph" style="width: 100%; height: 200px; margin: 20px 0; border: 1px solid #ddd; border-radius: 5px; max-width: 600px;"></div>
             <p>
                 I've vibe coded this website using <a href="https://www.anthropic.com/claude-code" rel="nofollow">Claude
                 Code</a> in Rust. The source code of the website is available <a
@@ -127,12 +155,130 @@
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = window.location.host;
     const ws = new WebSocket(`${protocol}//${host}/ws`);
+    
+    // CPU Graph setup
+    const container = document.getElementById("cpu-graph");
+    const containerWidth = container.clientWidth;
+    const margin = {top: 20, right: 20, bottom: 10, left: 10};
+    const width = Math.min(containerWidth, 600) - margin.left - margin.right;
+    const height = 200 - margin.top - margin.bottom;
+    
+    const svg = d3.select("#cpu-graph")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+    
+    // Scales
+    const xScale = d3.scaleTime()
+        .range([0, width]);
+    
+    const cpuScale = d3.scaleLinear()
+        .domain([0, 100])
+        .range([height, 0]);
+    
+    const tempScale = d3.scaleLinear()
+        .domain([0, 80])
+        .range([height, 0]);
+    
+    const fanScale = d3.scaleLinear()
+        .domain([0, 3000])
+        .range([height, 0]);
+    
+    // Line generators
+    const cpuLine = d3.line()
+        .x(d => xScale(new Date(d.timestamp)))
+        .y(d => cpuScale(d.cpuUsage))
+        .curve(d3.curveMonotoneX);
+    
+    const tempLine = d3.line()
+        .x(d => xScale(new Date(d.timestamp)))
+        .y(d => tempScale(d.temperature))
+        .curve(d3.curveMonotoneX);
+    
+    const fanLine = d3.line()
+        .x(d => xScale(new Date(d.timestamp)))
+        .y(d => fanScale(d.fanSpeed))
+        .curve(d3.curveMonotoneX);
+    
+    
+    
+    // Add paths for each metric
+    const cpuPath = svg.append("path")
+        .attr("fill", "none")
+        .attr("stroke", "#007bff")
+        .attr("stroke-width", 2);
+    
+    const tempPath = svg.append("path")
+        .attr("fill", "none")
+        .attr("stroke", "#dc3545")
+        .attr("stroke-width", 2);
+    
+    const fanPath = svg.append("path")
+        .attr("fill", "none")
+        .attr("stroke", "#28a745")
+        .attr("stroke-width", 2);
+    
+    // Add legend
+    const legend = svg.append("g")
+        .attr("transform", `translate(${width - 100}, 10)`);
+    
+    const legendData = [
+        { name: "CPU %", color: "#007bff" },
+        { name: "Temp °C", color: "#dc3545" },
+        { name: "Fan RPM", color: "#28a745" }
+    ];
+    
+    legend.selectAll(".legend-item")
+        .data(legendData)
+        .enter()
+        .append("g")
+        .attr("class", "legend-item")
+        .attr("transform", (d, i) => `translate(0, ${i * 15})`)
+        .each(function(d) {
+            d3.select(this).append("line")
+                .attr("x1", 0)
+                .attr("x2", 15)
+                .attr("y1", 0)
+                .attr("y2", 0)
+                .attr("stroke", d.color)
+                .attr("stroke-width", 2);
+            
+            d3.select(this).append("text")
+                .attr("x", 20)
+                .attr("y", 0)
+                .attr("dy", "0.35em")
+                .style("font-size", "10px")
+                .style("fill", "#333")
+                .text(d.name);
+        });
+    
+    function updateGraph(data) {
+        if (!data || data.length === 0) return;
+        
+        // Update time domain to show last 15 minutes
+        const now = new Date();
+        const fifteenMinutesAgo = new Date(now.getTime() - 15 * 60 * 1000);
+        xScale.domain([fifteenMinutesAgo, now]);
+        
+        // Update paths for each metric
+        cpuPath.datum(data).attr("d", cpuLine);
+        tempPath.datum(data).attr("d", tempLine);
+        fanPath.datum(data).attr("d", fanLine);
+        
+    }
 
     ws.onmessage = function (event) {
         const data = JSON.parse(event.data);
         document.getElementById("cpu-temperature").textContent = data.cpuTemperature;
         document.getElementById("fan-speed").textContent = data.fanSpeed;
         document.getElementById("cpu-usage").textContent = data.cpuUsage;
+        
+        // Update metrics graph
+        if (data.metricsHistory) {
+            updateGraph(data.metricsHistory);
+        }
     };
 
     ws.onerror = function () {
