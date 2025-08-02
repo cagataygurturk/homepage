@@ -7,21 +7,12 @@ RUN apk add --no-cache musl-dev gcc && \
 
 WORKDIR /app
 
-# Copy manifests for dependency caching
+# Copy all source files
 COPY Cargo.toml Cargo.lock ./
-
-# Build only the dependencies and then remove the dummy binary to ensure a clean final build
-RUN mkdir src && \
-    echo 'fn main() {}' > src/main.rs && \
-    cargo build --release --target aarch64-unknown-linux-musl && \
-    rm -f target/aarch64-unknown-linux-musl/release/homepage* && \
-    rm -rf src
-
-# Now, copy the actual source code and templates
 COPY src ./src
 COPY templates ./templates
 
-# Build the actual application
+# Build the application
 RUN cargo build --release --target aarch64-unknown-linux-musl
 
 # Final stage
