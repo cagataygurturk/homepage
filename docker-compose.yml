@@ -1,0 +1,31 @@
+services:
+  homepage:
+    image: ghcr.io/cagataygurturk/homepage:cpp
+    build:
+      context: .
+      dockerfile: Dockerfile
+      tags:
+        - ghcr.io/cagataygurturk/homepage:cpp
+    networks:
+      - app-network
+    ports:
+      - 8081:8080
+    environment:
+      - PORT=8080
+
+  envoy:
+    image: envoyproxy/envoy:v1.28-latest
+    ports:
+      - "8080:8080"
+      - "9901:9901"
+    volumes:
+      - ./envoy.yaml:/etc/envoy/envoy.yaml:ro
+    networks:
+      - app-network
+    depends_on:
+      - homepage
+    command: [ "/usr/local/bin/envoy", "-c", "/etc/envoy/envoy.yaml" ]
+
+networks:
+  app-network:
+    driver: bridge

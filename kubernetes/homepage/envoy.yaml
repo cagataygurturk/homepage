@@ -1,0 +1,141 @@
+admin:
+  address:
+    socket_address:
+      protocol: TCP
+      address: 0.0.0.0
+      port_value: 9901
+
+static_resources:
+  listeners:
+    - name: listener_0
+      address:
+        socket_address:
+          protocol: TCP
+          address: 0.0.0.0
+          port_value: 8443
+      filter_chains:
+        - transport_socket:
+            name: envoy.transport_sockets.tls
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+              common_tls_context:
+                tls_certificates:
+                  - certificate_chain:
+                      filename: /etc/ssl/tls.crt
+                    private_key:
+                      filename: /etc/ssl/tls.key
+                validation_context:
+                  trusted_ca:
+                    filename: /etc/ssl/ca.crt
+              require_client_certificate: true
+          filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: ingress_http
+                access_log:
+                  - name: envoy.access_loggers.stdout
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
+                      log_format:
+                        json_format:
+                          timestamp: "%START_TIME%"
+                          severity: "INFO"
+                          message: "%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL% %RESPONSE_CODE%"
+                          httpRequest:
+                            requestMethod: "%REQ(:METHOD)%"
+                            requestUrl: "%REQ(X-ENVOY-ORIGINAL-PATH?:PATH)%"
+                            requestSize: "%BYTES_RECEIVED%"
+                            status: "%RESPONSE_CODE%"
+                            responseSize: "%BYTES_SENT%"
+                            userAgent: "%REQ(USER-AGENT)%"
+                            remoteIp: "%REQ(X-FORWARDED-FOR)%"
+                            protocol: "%PROTOCOL%"
+                            latency: "%DURATION%ms"
+                          trace: "%REQ(X-CLOUD-TRACE-CONTEXT)%"
+                          labels:
+                            request_id: "%REQ(X-REQUEST-ID)%"
+                            authority: "%REQ(:AUTHORITY)%"
+                            upstream_host: "%UPSTREAM_HOST%"
+                            response_flags: "%RESPONSE_FLAGS%"
+                http_filters:
+                  - name: envoy.filters.http.compressor
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.compressor.v3.Compressor
+                      compressor_library:
+                        name: envoy.compression.brotli.compressor
+                        typed_config:
+                          "@type": type.googleapis.com/envoy.extensions.compression.brotli.compressor.v3.Brotli
+                          quality: 6
+                      response_direction_config:
+                        common_config:
+                          min_content_length: 30
+                          content_type:
+                            - text/html
+                            - text/plain
+                            - text/css
+                            - application/javascript
+                            - application/json
+                            - application/xml
+                            - text/xml
+                  - name: envoy.filters.http.compressor
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.compressor.v3.Compressor
+                      compressor_library:
+                        name: envoy.compression.gzip.compressor
+                        typed_config:
+                          "@type": type.googleapis.com/envoy.extensions.compression.gzip.compressor.v3.Gzip
+                          memory_level: 3
+                          window_bits: 12
+                          compression_level: BEST_COMPRESSION
+                          compression_strategy: DEFAULT_STRATEGY
+                      response_direction_config:
+                        common_config:
+                          min_content_length: 30
+                          content_type:
+                            - text/html
+                            - text/plain
+                            - text/css
+                            - application/javascript
+                            - application/json
+                            - application/xml
+                            - text/xml
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+                route_config:
+                  name: local_route
+                  virtual_hosts:
+                    - name: local_service
+                      domains: [ "*" ]
+                      routes:
+                        - match:
+                            prefix: "/"
+                          route:
+                            cluster: homepage_service
+                            timeout: 5s
+                            upgrade_configs:
+                              - upgrade_type: websocket
+
+  clusters:
+    - name: homepage_service
+      connect_timeout: 1s
+      type: LOGICAL_DNS
+      dns_lookup_family: V4_ONLY
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: homepage_service
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 127.0.0.1
+                      port_value: 8080
+      health_checks:
+        - timeout: 5s
+          interval: 10s
+          healthy_threshold: 2
+          unhealthy_threshold: 3
+          http_health_check:
+            path: "/"

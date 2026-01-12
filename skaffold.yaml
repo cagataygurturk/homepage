@@ -1,0 +1,24 @@
+apiVersion: skaffold/v4beta7
+kind: Config
+metadata:
+  name: homepage
+
+build:
+  artifacts:
+    - image: ghcr.io/cagataygurturk/homepage
+      context: .
+      docker:
+        dockerfile: Dockerfile
+        buildArgs:
+          BUILDKIT_INLINE_CACHE: "1"
+  platforms: ["linux/arm64"]
+  local:
+    push: true
+
+manifests:
+  kustomize:
+    paths:
+      - kubernetes/homepage
+
+deploy:
+  kubeContext: 95cc1ef4-2122-4b51-97d9-b35b531c3c45/cloudfleetou

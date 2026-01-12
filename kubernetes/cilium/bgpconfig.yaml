@@ -1,0 +1,50 @@
+apiVersion: "cilium.io/v2"
+kind: CiliumBGPAdvertisement
+metadata:
+  name: services
+  labels:
+    advertise: bgp
+spec:
+  advertisements:
+    - advertisementType: PodCIDR
+    - advertisementType: Service
+      service:
+        addresses:
+          - LoadBalancerIP
+      selector:
+        #matchLabels: {}
+        matchExpressions:
+          - { key: somekey, operator: NotIn, values: [ 'never-used-value' ] }
+---
+apiVersion: cilium.io/v2
+kind: CiliumBGPPeerConfig
+metadata:
+  name: unifi
+spec:
+  gracefulRestart:
+    enabled: true
+    restartTimeSeconds: 15
+  families:
+    - afi: ipv4
+      safi: unicast
+      advertisements:
+        matchLabels:
+          advertise: "bgp"
+---
+apiVersion: cilium.io/v2
+kind: CiliumBGPClusterConfig
+metadata:
+  name: unifi
+spec:
+  nodeSelector:
+    matchLabels:
+      topology.kubernetes.io/region: berlin
+  bgpInstances:
+    - name: "cloudfleet"
+      localASN: 65001
+      peers:
+        - name: unifi
+          peerASN: 65000
+          peerAddress: "172.16.10.1"
+          peerConfigRef:
+            name: unifi

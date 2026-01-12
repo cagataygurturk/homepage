@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homepage
+spec:
+  selector:
+    matchLabels: { }
+  replicas: 2
+  template:
+    metadata:
+      labels: { }
+    spec:
+      nodeSelector:
+        topology.kubernetes.io/region: berlin
+        kubernetes.io/arch: arm64
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - homepage
+                topologyKey: "kubernetes.io/hostname"
+              weight: 100
+      containers:
+        - name: homepage
+          image: ghcr.io/cagataygurturk/homepage:2520753a3e7b97e93a9bfdc8fcf060759605e8a8
+          imagePullPolicy: Always
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          ports:
+            - containerPort: 8080
+
+          volumeMounts:
+
+            - name: hwmon
+              mountPath: /sys/devices/platform/cooling_fan/hwmon/
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: hwmon
+          hostPath:
+            path: /sys/devices/platform/cooling_fan/hwmon/

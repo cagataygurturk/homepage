@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: homepage
+
+secretGenerator:
+  - type: tls
+    name: cloudflare-tls
+    files:
+      - tls.crt=tls.crt
+      - tls.key=tls.key
+      - ca.crt=ca.crt
+    options:
+      disableNameSuffixHash: true

@@ -1,0 +1,5 @@
+---
+Checks: '-*,readability-*,performance-*,modernize-*,bugprone-*,-readability-magic-numbers,-readability-avoid-const-params-in-decls,-modernize-use-trailing-return-type,-readability-identifier-length,-readability-convert-member-functions-to-static,-bugprone-easily-swappable-parameters,-modernize-use-scoped-lock'
+WarningsAsErrors: ''
+HeaderFilterRegex: '^(?!.*(build|_deps|third_party|cmake-build|CommandLineTools|SDKs|include/c\+\+)).*src/.*'
+FormatStyle: 'file'
