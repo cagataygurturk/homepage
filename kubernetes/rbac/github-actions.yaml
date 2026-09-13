@@ -1,0 +1,62 @@
+# Grants the GitHub Actions workflow (push to main) the permissions needed to run
+# `kubectl apply -k` on kubernetes/cilium and kubernetes/homepage.
+# See https://cloudfleet.ai/docs/ci-cd-integration/github-actions/
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gha-homepage-deployer
+rules:
+  - apiGroups: [ "" ]
+    resources: [ "namespaces" ]
+    resourceNames: [ "homepage" ]
+    verbs: [ "get", "patch" ]
+  - apiGroups: [ "cilium.io" ]
+    resources:
+      - ciliumloadbalancerippools
+      - ciliumbgpadvertisements
+      - ciliumbgppeerconfigs
+      - ciliumbgpclusterconfigs
+    verbs: [ "get", "create", "patch" ]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gha-homepage-deployer
+subjects:
+  - kind: User
+    name: "github:repo:cagataygurturk/homepage:ref:refs/heads/main"
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: gha-homepage-deployer
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gha-homepage-deployer
+  namespace: homepage
+rules:
+  - apiGroups: [ "apps" ]
+    resources: [ "deployments" ]
+    verbs: [ "get", "create", "patch" ]
+  - apiGroups: [ "" ]
+    resources: [ "services" ]
+    verbs: [ "get", "create", "patch" ]
+  - apiGroups: [ "networking.k8s.io" ]
+    resources: [ "ingresses" ]
+    verbs: [ "get", "create", "patch" ]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gha-homepage-deployer
+  namespace: homepage
+subjects:
+  - kind: User
+    name: "github:repo:cagataygurturk/homepage:ref:refs/heads/main"
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: gha-homepage-deployer
+  apiGroup: rbac.authorization.k8s.io

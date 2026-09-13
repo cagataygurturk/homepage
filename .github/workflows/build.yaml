@@ -17,9 +17,6 @@ jobs:
       id-token: write
 
     env:
-      CLOUDFLEET_ACCESS_TOKEN_ID: ${{ vars.CLOUDFLEET_API_KEY }}
-      CLOUDFLEET_ACCESS_TOKEN_SECRET: ${{ secrets.CLOUDFLEET_API_SECRET }}
-      CLOUDFLEET_ORGANIZATION_ID: ${{ vars.CLOUDFLEET_ORGANIZATION_ID }}
       REGISTRY: ${{ vars.CLOUDFLEET_ORGANIZATION_ID }}.europe.registry.cloudfleet.dev
 
     steps:
@@ -64,22 +61,16 @@ jobs:
       - run: kustomize edit set image ghcr.io/cagataygurturk/homepage=${{ env.REGISTRY }}/${{ github.repository }}:${GITHUB_SHA}
         working-directory: kubernetes/homepage/
 
-      - name: Install Cloudfleet CLI
-        env:
-          NONINTERACTIVE: 1
-        run: |
-          curl -fsSL https://downloads.cloudfleet.ai/apt/pubkey.gpg | tee /usr/share/keyrings/cloudfleet-archive-keyring.gpg >/dev/null
-          echo "deb [signed-by=/usr/share/keyrings/cloudfleet-archive-keyring.gpg] https://downloads.cloudfleet.ai/apt stable main" | sudo tee /etc/apt/sources.list.d/cloudfleet.list
-          sudo apt update
-          sudo apt install cloudfleet                
-
-      - name: Configure Kubeconfig
-        run: cloudfleet clusters kubeconfig ${{ vars.CLOUDFLEET_CLUSTER_ID }}
-
-      - uses: azure/setup-kubectl@v4
+      - uses: azure/setup-kubectl@v5
         name: Setup kubectl
 
-      - run: kubectl cluster-info
+      - uses: cloudfleet-actions/configure-kubectl@v1
+        name: Configure kubectl
+        with:
+          cluster-id: ${{ vars.CFKE_CLUSTER_ID }}
+          region: ${{ vars.CFKE_REGION }}
+
+      - run: kubectl auth whoami
 
       - run: kubectl apply -k .
         working-directory: kubernetes/cilium
