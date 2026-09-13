@@ -24,8 +24,8 @@ std::optional<int> Config::getEnvInt(const char* name, int defaultValue) {
   }
 
   int result;
-  auto [ptr, ec] = std::from_chars(env, env + std::strlen(env), result);
-  if (ec == std::errc{} && ptr == env + std::strlen(env)) {
+  if (auto [ptr, ec] = std::from_chars(env, env + std::strlen(env), result);
+      ec == std::errc{} && ptr == env + std::strlen(env)) {
     return result;
   }
 

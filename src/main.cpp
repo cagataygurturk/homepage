@@ -3,6 +3,7 @@
 #include <spdlog/spdlog.h>
 #include <trantor/utils/Logger.h>
 
+#include <cstddef>
 #include <iostream>
 
 #include "controllers/home_controller.hpp"
@@ -21,7 +22,7 @@ int main() {
       R"({"timestamp":"%Y-%m-%dT%H:%M:%S.%f","level":"%l","thread":"%t","logger":"%n","message":"%v"})");
 
   // Create logger
-  auto logger = std::make_shared<spdlog::logger>("drogon", console_sink);
+  const auto logger = std::make_shared<spdlog::logger>("drogon", console_sink);
   logger->set_level(spdlog::level::info);
 
   // Enable spdlog for Drogon/Trantor logging
@@ -37,7 +38,7 @@ int main() {
           *metricsService);
 
   // Get configuration
-  auto& config = homepage::utils::Config::instance();
+  const auto& config = homepage::utils::Config::instance();
 
   LOG_INFO << "Starting homepage server on " << config.getAddress() << ":"
            << config.getPort();
@@ -54,10 +55,8 @@ int main() {
   // Configure JSON parsing
   app().setClientMaxBodySize(1024 * 1024);  // 1MB max body size
 
-  LOG_INFO << "Server started successfully";
-  LOG_INFO << "Environment variables:";
-  LOG_INFO << "  PORT=" << config.getPort();
-  LOG_INFO << "  ADDRESS=" << config.getAddress();
+  LOG_INFO << "Server started successfully on " << config.getAddress() << ":"
+           << config.getPort();
 
   // Start the server
   app().run();

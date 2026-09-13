@@ -32,7 +32,7 @@ void MetricsWebSocket::
   LOG_INFO << "New WebSocket connection established";
 
   // Start sending metrics updates
-  std::thread([wsConnPtr, &metricsService = metricsService_]() {
+  std::thread([wsConnPtr, &metricsService = metricsService_] {
     while (!wsConnPtr->disconnected()) {
       try {
         // Collect metrics

@@ -5,6 +5,8 @@
 #include <fstream>
 #include <sstream>
 
+#include "trantor/utils/Logger.h"
+
 namespace homepage::services {
 
 double MetricsService::get_cpu_usage() {
@@ -62,11 +64,11 @@ std::optional<double> MetricsService::get_cpu_temperature() {
     // Try different thermal zones
     for (const auto& entry :
          std::filesystem::directory_iterator("/sys/class/thermal/")) {
-      if (entry.path().filename().string().find("thermal_zone") == 0) {
+      if (entry.path().filename().string().starts_with("thermal_zone")) {
         std::ifstream temp_file(entry.path() / "temp");
-        std::ifstream type_file(entry.path() / "type");
 
-        if (temp_file.is_open() && type_file.is_open()) {
+        if (std::ifstream type_file(entry.path() / "type");
+            temp_file.is_open() && type_file.is_open()) {
           std::string type;
           type_file >> type;
 
@@ -85,10 +87,9 @@ std::optional<double> MetricsService::get_cpu_temperature() {
     }
 
     // Try Raspberry Pi thermal zone
-    std::ifstream rpi_temp("/sys/class/thermal/thermal_zone0/temp");
-    if (rpi_temp.is_open()) {
-      int temp_millidegrees;
-      if (rpi_temp >> temp_millidegrees) {
+    if (std::ifstream rpi_temp("/sys/class/thermal/thermal_zone0/temp");
+        rpi_temp.is_open()) {
+      if (int temp_millidegrees; rpi_temp >> temp_millidegrees) {
         return temp_millidegrees / 1000.0;
       }
     }
@@ -116,27 +117,24 @@ std::optional<double> MetricsService::get_fan_speed() {
       for (int i = 1; i <= 10; ++i) {
         std::string fan_input =
             hwmon_path + "/fan" + std::to_string(i) + "_input";
-        std::ifstream fan_file(fan_input);
 
-        if (fan_file.is_open()) {
-          int rpm;
-          if (fan_file >> rpm && rpm > 0) {
-            return static_cast<double>(rpm);
+        if (std::ifstream fan_file(fan_input); fan_file.is_open()) {
+          if (int rpm; fan_file >> rpm && rpm > 0) {
+            return rpm;
           }
         }
       }
     }
   } catch (const std::exception&) {
-    // Directory might not exist or be accessible
+    LOG_ERROR << "Failed to read cpu temperature from /sys/class/hwmon/";
   }
 
   // Try Raspberry Pi specific fan control
   std::ifstream rpi_fan(
       "/sys/devices/platform/cooling_fan/hwmon/hwmon*/fan1_input");
   if (rpi_fan.is_open()) {
-    int rpm;
-    if (rpi_fan >> rpm) {
-      return static_cast<double>(rpm);
+    if (int rpm; rpi_fan >> rpm) {
+      return rpm;
     }
   }
 
