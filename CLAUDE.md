@@ -54,9 +54,9 @@ comprehensive Kubernetes deployment with Envoy proxy for TLS termination, compre
 
 #### 1. MetricsService
 
-- **Base class** (`metrics_service.cpp`): Common interface and JSON serialization
+- **Base class** (`metrics_service.cpp`): Single sampler thread (2 s interval) publishing a mutex-protected snapshot via `latest()`, plus JSON serialization
 - **Platform-specific implementations**:
-    - `metrics_service_linux.cpp`: Uses `/proc/stat`, `/sys/class/hwmon`
+    - `metrics_service_linux.cpp`: Uses `/proc/stat` for CPU usage and libsensors (lm-sensors) for temperature and fan speed
     - `metrics_service_mac.cpp`: Uses system APIs for macOS
 - **Metrics collected**:
     - CPU usage percentage (calculated from idle/total time delta)
@@ -67,7 +67,7 @@ comprehensive Kubernetes deployment with Envoy proxy for TLS termination, compre
 
 - **Custom constructor**: Requires `MetricsService` dependency injection
 - **Manual registration**: Uses `WebSocketController<T, false>` to disable auto-creation
-- **Real-time streaming**: Sends JSON metrics every 2 seconds
+- **Real-time streaming**: Sends the latest sampled snapshot as JSON every 2 seconds
 - **Connection management**: Handles new connections, disconnections, graceful shutdown
 - **Threading**: Each connection runs in its own detached thread
 
@@ -160,14 +160,14 @@ make clean          # Clean build artifacts
 
 ### Temperature Monitoring
 
-- **Linux**: `/sys/class/hwmon/hwmon*/temp*_input` (millicelsius)
+- **Linux**: libsensors enumerates hwmon chips; CPU chips are preferred by name (`cpu_thermal` on Raspberry Pi,
+  `k10temp`, `coretemp`, `zenpower` on x86), then any chip whose name contains `cpu` or `soc`
 - **macOS**: System-specific APIs
 - **Availability**: Optional (returns `null` if unavailable)
 
 ### Fan Speed Detection
 
-- **Raspberry Pi**: `/sys/devices/platform/cooling_fan/hwmon/`
-- **Generic hwmon**: Auto-detection of fan RPM sensors
+- **Linux**: libsensors, first fan input reporting a non-zero RPM (`pwmfan` on Raspberry Pi 5)
 - **Units**: Revolutions per minute (RPM)
 
 ## Development Guidelines
@@ -179,7 +179,7 @@ make clean          # Clean build artifacts
 - **Namespace organization**: `homepage::services`, `homepage::controllers`
 - **RAII principles**: Smart pointers, automatic resource management
 - **Error handling**: Exception-based with logging
-- **Thread safety**: Detached threads for WebSocket connections
+- **Thread safety**: Metrics are sampled on one thread; WebSocket connection threads only read the published snapshot
 - **Code quality**: Use clang-format (Google style) and address clang-tidy warnings, suppress false positives with NOLINT comments
 
 ### Build Requirements
@@ -259,7 +259,8 @@ make clean          # Clean build artifacts
 ### Dependency Management
 
 - Never assume system dependencies are available
-- All dependencies fetched via CPM during build
+- All dependencies fetched via CPM during build, except libsensors which comes from the OS package
+  (`lm-sensors-dev` at build time, `lm-sensors-libs` at runtime on Alpine)
 - Version pinning for reproducible builds (Drogon v1.9.8)
 - Header-only libraries preferred for static linking
 

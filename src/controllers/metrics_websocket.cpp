@@ -35,9 +35,9 @@ void MetricsWebSocket::
   std::thread([wsConnPtr, &metricsService = metricsService_] {
     while (!wsConnPtr->disconnected()) {
       try {
-        // Collect metrics
-        auto metrics = metricsService.collect();
-        std::string json = metricsService.to_json(metrics);
+        // Read the latest snapshot from the shared sampler
+        const std::string json =
+            metricsService.to_json(metricsService.latest());
 
         // Send to client
         if (!wsConnPtr->disconnected()) {

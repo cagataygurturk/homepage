@@ -8,6 +8,7 @@ RUN apk --no-cache add \
     git \
     pkgconfig \
     jsoncpp-dev \
+    lm-sensors-dev \
     spdlog-dev \
     util-linux-dev \
     zlib-dev \
@@ -43,6 +44,7 @@ FROM alpine:latest
 # Install runtime dependencies
 RUN apk --no-cache add \
     jsoncpp \
+    lm-sensors-libs \
     util-linux \
     fmt
 

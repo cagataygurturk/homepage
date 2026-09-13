@@ -54,3 +54,12 @@ find_package(spdlog REQUIRED)
 
 # Link with Drogon and spdlog statically
 target_link_libraries(homepage drogon spdlog::spdlog_header_only)
+
+# libsensors (lm-sensors) provides hwmon temperature and fan readings on Linux.
+# It ships no CMake or pkg-config files, so locate it directly.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    find_path(SENSORS_INCLUDE_DIR sensors/sensors.h REQUIRED)
+    find_library(SENSORS_LIBRARY NAMES sensors REQUIRED)
+    target_include_directories(homepage PRIVATE ${SENSORS_INCLUDE_DIR})
+    target_link_libraries(homepage ${SENSORS_LIBRARY})
+endif()

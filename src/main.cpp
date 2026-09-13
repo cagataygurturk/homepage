@@ -31,6 +31,7 @@ int main() {
   // Create MetricsService instance
   static auto metricsService =
       std::make_unique<homepage::services::MetricsService>();
+  metricsService->start();
 
   // Force WebSocket controller registration
   static auto ws_controller =
