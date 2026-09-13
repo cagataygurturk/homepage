@@ -1,16 +1,21 @@
 #include "controllers/metrics_websocket.hpp"
 
-#include <chrono>
-#include <thread>
-
-#include "services/metrics_service.hpp"
+#include <vector>
 
 using namespace drogon;
 
 namespace homepage::controllers {
 
 MetricsWebSocket::MetricsWebSocket(services::MetricsService& metricsService)
-    : metricsService_(metricsService) {}
+    : metricsService_(metricsService),
+      subscription_(metricsService_.subscribe(
+          [this](const services::SystemMetrics& metrics) {
+            broadcast(metrics);
+          })) {}
+
+MetricsWebSocket::~MetricsWebSocket() {
+  metricsService_.unsubscribe(subscription_);
+}
 
 void MetricsWebSocket::handleNewMessage(
     const WebSocketConnectionPtr&
@@ -20,41 +25,48 @@ void MetricsWebSocket::handleNewMessage(
   // For now, we don't handle client messages
 }
 
-void MetricsWebSocket::
-    handleConnectionClosed(  // NOLINT(readability-convert-member-functions-to-static)
-        const WebSocketConnectionPtr& wsConnPtr) {
+void MetricsWebSocket::handleConnectionClosed(
+    const WebSocketConnectionPtr& wsConnPtr) {
+  {
+    const std::lock_guard lock(connections_mutex_);
+    connections_.erase(wsConnPtr);
+  }
   LOG_INFO << "WebSocket connection closed";
 }
 
 void MetricsWebSocket::
-    handleNewConnection(  // NOLINT(readability-convert-member-functions-to-static,bugprone-easily-swappable-parameters)
+    handleNewConnection(  // NOLINT(bugprone-easily-swappable-parameters)
         const HttpRequestPtr& req, const WebSocketConnectionPtr& wsConnPtr) {
   LOG_INFO << "New WebSocket connection established";
 
-  // Start sending metrics updates
-  std::thread([wsConnPtr, &metricsService = metricsService_] {
-    while (!wsConnPtr->disconnected()) {
-      try {
-        // Read the latest snapshot from the shared sampler
-        const std::string json =
-            metricsService.to_json(metricsService.latest());
+  {
+    const std::lock_guard lock(connections_mutex_);
+    connections_.insert(wsConnPtr);
+  }
 
-        // Send to client
-        if (!wsConnPtr->disconnected()) {
-          wsConnPtr->send(json);
-        }
+  // Send the current snapshot right away instead of waiting for the next
+  // sample.
+  wsConnPtr->send(metricsService_.to_json(metricsService_.latest()));
+}
 
-        // Wait 2 seconds before next update
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+void MetricsWebSocket::broadcast(const services::SystemMetrics& metrics) {
+  // Copy the set so sends happen without holding the lock. send() is safe to
+  // call from any thread; Drogon hands the frame to the connection's loop.
+  std::vector<WebSocketConnectionPtr> connections;
+  {
+    const std::lock_guard lock(connections_mutex_);
+    connections.assign(connections_.begin(), connections_.end());
+  }
+  if (connections.empty()) {
+    return;
+  }
 
-      } catch (const std::exception& e) {
-        LOG_ERROR << "Error in metrics loop: " << e.what();
-        break;
-      }
+  const std::string json = metricsService_.to_json(metrics);
+  for (const auto& connection : connections) {
+    if (!connection->disconnected()) {
+      connection->send(json);
     }
-
-    LOG_INFO << "Metrics loop ended for WebSocket connection";
-  }).detach();
+  }
 }
 
 }  // namespace homepage::controllers

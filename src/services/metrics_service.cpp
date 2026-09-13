@@ -2,8 +2,10 @@
 
 #include <json/json.h>
 
+#include <algorithm>
 #include <cstdlib>
 #include <exception>
+#include <ranges>
 #include <utility>
 
 #include "trantor/utils/Logger.h"
@@ -50,6 +52,19 @@ SystemMetrics MetricsService::latest() const {
   return latest_;
 }
 
+MetricsService::SubscriptionId MetricsService::subscribe(Listener listener) {
+  const std::lock_guard lock(listeners_mutex_);
+  const SubscriptionId id = next_subscription_++;
+  listeners_.emplace_back(id, std::move(listener));
+  return id;
+}
+
+void MetricsService::unsubscribe(SubscriptionId id) {
+  const std::lock_guard lock(listeners_mutex_);
+  std::erase_if(listeners_,
+                [id](const auto& entry) { return entry.first == id; });
+}
+
 void MetricsService::run() {
   std::unique_lock lock(mutex_);
   // Sample once right away so early connections see real values, then keep
@@ -58,15 +73,31 @@ void MetricsService::run() {
   do {
     lock.unlock();
     try {
-      SystemMetrics metrics = sample();
-      lock.lock();
-      latest_ = std::move(metrics);
+      publish(sample());
     } catch (const std::exception& e) {
       LOG_ERROR << "Metrics sampling failed: " << e.what();
-      lock.lock();
     }
+    lock.lock();
   } while (
       !stop_cv_.wait_for(lock, interval_, [this] { return stop_requested_; }));
+}
+
+void MetricsService::publish(const SystemMetrics& metrics) {
+  {
+    const std::lock_guard lock(mutex_);
+    latest_ = metrics;
+  }
+
+  // Listeners run under listeners_mutex_ so unsubscribe() cannot return while
+  // a listener is still executing.
+  const std::lock_guard lock(listeners_mutex_);
+  for (const auto& listener : listeners_ | std::views::values) {
+    try {
+      listener(metrics);
+    } catch (const std::exception& e) {
+      LOG_ERROR << "Metrics listener failed: " << e.what();
+    }
+  }
 }
 
 SystemMetrics MetricsService::sample() {

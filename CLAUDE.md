@@ -67,9 +67,8 @@ comprehensive Kubernetes deployment with Envoy proxy for TLS termination, compre
 
 - **Custom constructor**: Requires `MetricsService` dependency injection
 - **Manual registration**: Uses `WebSocketController<T, false>` to disable auto-creation
-- **Real-time streaming**: Sends the latest sampled snapshot as JSON every 2 seconds
-- **Connection management**: Handles new connections, disconnections, graceful shutdown
-- **Threading**: Each connection runs in its own detached thread
+- **Real-time streaming**: Subscribes to `MetricsService` and broadcasts one JSON message to every open connection after each sample (every 2 seconds); new connections get the latest snapshot immediately
+- **Connection management**: Keeps a mutex-protected set of open connections; no thread per connection
 
 #### 3. HomeController
 
@@ -179,7 +178,7 @@ make clean          # Clean build artifacts
 - **Namespace organization**: `homepage::services`, `homepage::controllers`
 - **RAII principles**: Smart pointers, automatic resource management
 - **Error handling**: Exception-based with logging
-- **Thread safety**: Metrics are sampled on one thread; WebSocket connection threads only read the published snapshot
+- **Thread safety**: Metrics are sampled and broadcast from one thread; Drogon's `WebSocketConnection::send` is safe to call from any thread
 - **Code quality**: Use clang-format (Google style) and address clang-tidy warnings, suppress false positives with NOLINT comments
 
 ### Build Requirements
@@ -223,7 +222,7 @@ make clean          # Clean build artifacts
 ### Scalability
 
 - **Horizontal**: Multiple replicas with load balancing
-- **Connection handling**: One thread per WebSocket connection
+- **Connection handling**: Event-driven; one sampler thread serves all WebSocket connections
 - **Compression**: Reduces bandwidth usage by 20-25% (Brotli)
 - **Health monitoring**: Automatic failover and recovery
 
