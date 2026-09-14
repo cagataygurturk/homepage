@@ -3,6 +3,7 @@
 #include <drogon/WebSocketController.h>
 
 #include <mutex>
+#include <string>
 #include <unordered_set>
 
 #include "services/metrics_service.hpp"
@@ -33,6 +34,9 @@ class MetricsWebSocket
   void handleNewConnection(
       const drogon::HttpRequestPtr& req,
       const drogon::WebSocketConnectionPtr& wsConnPtr) override;
+
+  // Sends a close frame to every open connection, e.g. before shutdown.
+  void closeAll(drogon::CloseCode code, const std::string& reason);
 
   WS_PATH_LIST_BEGIN
   WS_PATH_ADD("/ws");

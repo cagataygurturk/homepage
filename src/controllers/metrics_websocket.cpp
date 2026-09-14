@@ -49,6 +49,21 @@ void MetricsWebSocket::
   wsConnPtr->send(metricsService_.to_json(metricsService_.latest()));
 }
 
+void MetricsWebSocket::closeAll(CloseCode code, const std::string& reason) {
+  std::vector<WebSocketConnectionPtr> connections;
+  {
+    const std::lock_guard lock(connections_mutex_);
+    connections.assign(connections_.begin(), connections_.end());
+    connections_.clear();
+  }
+  LOG_INFO << "Closing " << connections.size() << " WebSocket connection(s)";
+  for (const auto& connection : connections) {
+    if (!connection->disconnected()) {
+      connection->shutdown(code, reason);
+    }
+  }
+}
+
 void MetricsWebSocket::broadcast(const services::SystemMetrics& metrics) {
   // Copy the set so sends happen without holding the lock. send() is safe to
   // call from any thread; Drogon hands the frame to the connection's loop.

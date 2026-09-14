@@ -42,6 +42,12 @@ spec:
             - name: hwmon
               mountPath: /sys/devices/platform/cooling_fan/hwmon/
               readOnly: true
+          # Give ingress-nginx time to drop the pod from its upstreams before
+          # the process receives SIGTERM.
+          lifecycle:
+            preStop:
+              exec:
+                command: [ "sleep", "5" ]
           livenessProbe:
             httpGet:
               path: /

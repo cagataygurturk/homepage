@@ -56,6 +56,15 @@ int main() {
   // Configure JSON parsing
   app().setClientMaxBodySize(1024 * 1024);  // 1MB max body size
 
+  // On SIGTERM (e.g. a rolling update) tell every WebSocket client we are
+  // going away before the server stops, so browsers reconnect cleanly.
+  app().setTermSignalHandler([] {
+    app().getLoop()->queueInLoop([] {
+      ws_controller->closeAll(CloseCode::kEndpointGone, "server shutting down");
+      app().quit();
+    });
+  });
+
   LOG_INFO << "Server started successfully on " << config.getAddress() << ":"
            << config.getPort();
 

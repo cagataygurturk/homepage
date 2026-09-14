@@ -3,8 +3,9 @@
 ## Project Overview
 
 A modern C++ server that displays real-time system metrics (CPU usage, temperature, fan speed) via WebSocket
-connections. Built with the Drogon framework and designed for high-performance, low-latency metrics streaming. Features
-comprehensive Kubernetes deployment with Envoy proxy for TLS termination, compression, and load balancing.
+connections. Built with the Drogon framework and designed for high-performance, low-latency metrics streaming. Deployed
+on Kubernetes behind ingress-nginx, which terminates TLS, verifies Cloudflare's origin-pull client certificate and
+compresses responses.
 
 ## Architecture
 
@@ -19,9 +20,9 @@ comprehensive Kubernetes deployment with Envoy proxy for TLS termination, compre
 ### System Architecture
 
 ```
-[Client] → [Envoy Proxy] → [Homepage App]
-           ↓ 8443 HTTPS     ↓ 8080 HTTP
-           (TLS + Compression)
+[Client] → [Cloudflare] → [ingress-nginx] → [Homepage App]
+            443 HTTPS      443 HTTPS         8080 HTTP
+            (WAF, cache)   (TLS, mTLS, gzip)
 ```
 
 ## Project Structure
@@ -83,14 +84,14 @@ comprehensive Kubernetes deployment with Envoy proxy for TLS termination, compre
 - `PORT`: Server port (default: 8080)
 - `ADDRESS`: Bind address (default: [::] for dual-stack IPv4/IPv6)
 
-### TLS Configuration (via Envoy)
+### TLS Configuration (via ingress-nginx)
 
 - Server operates in HTTP-only mode (port 8080)
-- Envoy handles TLS termination (port 8443)
-- Mutual TLS configured via Kubernetes secrets:
-    - `/etc/ssl/tls.crt`: Server certificate
-    - `/etc/ssl/tls.key`: Server private key
-    - `/etc/ssl/ca.crt`: Client CA certificate
+- The Ingress (`kubernetes/homepage/ingress.yaml`, class `nginx`, host `cagataygurturk.com`) terminates TLS with the
+  `cloudflare-tls` secret (Cloudflare origin certificate and key)
+- Client certificate verification via the `auth-tls-*` annotations against the CA in the same secret, so only
+  Cloudflare can reach the origin
+- Secret sources live in `kubernetes/homepage/cloudflare-tls/`
 
 ## Deployment Architecture
 
@@ -108,27 +109,26 @@ comprehensive Kubernetes deployment with Envoy proxy for TLS termination, compre
 - Replicas: 2 (high availability)
 - Node selector: ARM64 architecture, Berlin region
 - Pod anti-affinity: Spread across different nodes
-- Init container: Envoy proxy sidecar
 - Volume mounts: Hardware monitoring access (/sys/devices/platform/cooling_fan/hwmon/)
 - Health checks: Liveness and readiness probes on port 8080
-- TLS secrets: Cloudflare certificates mounted to /etc/ssl
+- Service: ClusterIP port 80 → container port 8080
+- Ingress: nginx class, TLS + client certificate verification with the cloudflare-tls secret
 ```
 
-### Envoy Proxy Features
+### ingress-nginx
 
-- **TLS termination**: HTTPS on port 8443 with mutual TLS
-- **Compression**: Brotli (quality 6) and gzip (best compression) for web content
-- **Load balancing**: Round-robin to backend services
-- **Health checks**: Monitors backend health on / endpoint
+- **TLS termination**: HTTPS on port 443 with client certificate verification (Cloudflare origin pull)
+- **Compression**: gzip level 6 for text content, set cluster-wide in the `ingress-nginx-controller` ConfigMap
+  (`use-gzip`, `gzip-level`, `gzip-min-length`); the ConfigMap is Helm-managed, so keep the values in the chart values too
+- **Load balancing**: Round-robin across the two homepage pods
 - **WebSocket support**: Upgrade handling for real-time connections
-- **Structured logging**: JSON access logs with request tracing
-- **Admin interface**: Port 9901 for monitoring and diagnostics
+- **Deployment**: Helm chart `ingress-nginx` in namespace `ingress-nginx`, three controller replicas
 
 ### Networking
 
 - **Load Balancer**: Cilium BGP control plane
-- **IP**: 172.16.199.254
-- **SSL termination**: Port 443 → 8443 (Envoy) → 8080 (App)
+- **IP**: 172.16.199.254 (the ingress-nginx controller's LoadBalancer Service)
+- **Path**: Cloudflare → 443 (ingress-nginx) → Service 80 → 8080 (App)
 
 ## Build System
 
@@ -136,7 +136,7 @@ comprehensive Kubernetes deployment with Envoy proxy for TLS termination, compre
 
 - **C++20 standard** with modern features
 - **Drogon features**: Minimal build (ORM, CTL, examples disabled)
-- **TLS**: Disabled in Drogon (handled by Envoy)
+- **TLS**: Disabled in Drogon (handled by ingress-nginx)
 - **Static linking**: spdlog header-only, Drogon static
 - **Optimization**: Release builds with stripped binaries
 
@@ -200,7 +200,7 @@ make clean          # Clean build artifacts
 
 - **Mutual TLS**: Client certificate validation
 - **Certificate management**: Kubernetes secrets with Cloudflare CA
-- **Protocol support**: TLS 1.2+ via Envoy
+- **Protocol support**: TLS 1.2+ via ingress-nginx
 - **Cipher suites**: Modern, secure configurations
 
 ### Container Security
@@ -223,7 +223,7 @@ make clean          # Clean build artifacts
 
 - **Horizontal**: Multiple replicas with load balancing
 - **Connection handling**: Event-driven; one sampler thread serves all WebSocket connections
-- **Compression**: Reduces bandwidth usage by 20-25% (Brotli)
+- **Compression**: gzip at ingress-nginx between Cloudflare and the origin
 - **Health monitoring**: Automatic failover and recovery
 
 ## Monitoring and Observability
@@ -232,12 +232,11 @@ make clean          # Clean build artifacts
 
 - **Liveness probe**: HTTP GET / every 30s (5s timeout, 3 failures)
 - **Readiness probe**: HTTP GET / every 10s (3s timeout, 3 failures)
-- **Envoy admin**: Port 9901 for proxy metrics and configuration
 
 ### Logging
 
 - **Application logs**: JSON structured format
-- **Access logs**: Envoy with request tracing
+- **Access logs**: ingress-nginx controller logs
 - **Error tracking**: Exception handling with stack traces
 - **Performance metrics**: Request duration, response sizes
 

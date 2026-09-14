@@ -51,7 +51,7 @@ RUN apk --no-cache add \
 # Copy the binary from builder stage
 COPY --from=builder /app/build/homepage /homepage
 
-# Expose port 8080 (HTTP only, SSL handled by Envoy)
+# Expose port 8080 (HTTP only, TLS is terminated by ingress-nginx)
 EXPOSE 8080
 
 # Set the binary as entrypoint
