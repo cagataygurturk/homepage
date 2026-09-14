@@ -17,9 +17,6 @@ constexpr std::string_view INDEX_HTML = R"html(<!DOCTYPE html>
             --ui-background: #ffffff;
             --ui-01: #f4f4f4;
             --text-01: #171717;
-            --interactive-02: #3d3d3d;
-            --hover-secondary: #4c4c4c;
-            --active-secondary: #6f6f6f;
             --focus: #0062ff;
             --blue-10: #edf4ff;
             --blue-60: #0062ff;
@@ -175,35 +172,6 @@ constexpr std::string_view INDEX_HTML = R"html(<!DOCTYPE html>
             flex-shrink: 0;
         }
 
-        /* Secondary button */
-        .btn {
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-            min-height: 3rem;
-            padding: 0 3.9375rem 0 0.9375rem;
-            border: 1px solid transparent;
-            background-color: var(--interactive-02);
-            color: var(--inverse-01);
-            font-size: 0.875rem;
-            line-height: 1.125rem;
-            letter-spacing: 0.16px;
-            text-decoration: none;
-            cursor: pointer;
-            transition: background-color 110ms var(--easing-productive);
-        }
-
-        .btn:hover { background-color: var(--hover-secondary); }
-        .btn:active { background-color: var(--active-secondary); }
-
-        .btn svg {
-            position: absolute;
-            right: 1rem;
-            width: 1rem;
-            height: 1rem;
-            fill: currentColor;
-        }
-
         /* Hero */
         .hero {
             background-color: var(--ui-01);
@@ -318,44 +286,6 @@ constexpr std::string_view INDEX_HTML = R"html(<!DOCTYPE html>
         .status--connected .status__dot { background-color: var(--green-40); }
         .status--disconnected .status__dot { background-color: var(--yellow-30); }
 
-        /* Projects */
-        .projects {
-            padding: var(--spacing-09) 0 var(--spacing-10);
-        }
-
-        .panel {
-            background-color: var(--ui-01);
-        }
-
-        .panel .row {
-            gap: 0 var(--spacing-07);
-        }
-
-        .panel__figure {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 8rem;
-            padding: var(--spacing-06);
-        }
-
-        .panel__figure svg {
-            width: 4rem;
-            height: 4rem;
-            fill: var(--text-01);
-        }
-
-        .panel__body {
-            padding: var(--spacing-06) var(--spacing-06) var(--spacing-06) 0;
-        }
-
-        .panel__body .btn {
-            margin-top: var(--spacing-05);
-        }
-
-        @media (max-width: 41.98rem) {
-            .panel__body { padding: 0 var(--spacing-06) var(--spacing-06); }
-        }
     </style>
 </head>
 <body>
@@ -378,7 +308,6 @@ constexpr std::string_view INDEX_HTML = R"html(<!DOCTYPE html>
             <div class="row">
                 <div class="band__label sm-4 md-3 lg-4 body-long-01">
                     <h2 id="about-heading" class="heading-01">About</h2>
-                    <p>Berlin</p>
                     <ul>
                         <li><a class="link link--inverse link--icon" href="https://www.linkedin.com/in/cagataygurturk/">LinkedIn
                             <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M10 6v2h12.59L6 24.59 7.41 26 24 9.41V22h2V6H10z"/></svg></a></li>
@@ -390,13 +319,20 @@ constexpr std::string_view INDEX_HTML = R"html(<!DOCTYPE html>
                 </div>
                 <div class="band__body sm-4 md-5 lg-8 body-long-01">
                     <p>
-                        This site is served from a Raspberry Pi 5 cluster at my home. The nodes run Kubernetes
-                        through <a class="link link--inverse" href="https://cloudfleet.ai">Cloudfleet</a>, traffic
-                        reaches them over BGP, and Cloudflare sits in front.
+                        I am a technologist based in Berlin. I have spent a decent amount of time architecting
+                        platforms for retail and financial institutions. More recently I have been working on AI
+                        infrastructure and tech sovereignty with a leading technology company. I also
+                        <a class="link link--inverse" href="https://www.amazon.com/dp/1787129195">wrote a book</a>
+                        about serverless architecture.
                     </p>
                     <p>
-                        The networking setup is described in
-                        <a class="link link--inverse" href="https://medium.com/itnext/kubernetes-on-raspberry-pi-and-bgp-load-balancing-with-unifi-dream-machine-pro-d5b94b6cfe99">this article</a>.
+                        This site is a crazily overengineered piece of software written in C++, served from a
+                        Raspberry Pi 5 cluster at home. The nodes run Kubernetes through
+                        <a class="link link--inverse" href="https://cloudfleet.ai">Cloudfleet</a>. The networking
+                        setup behind it is described in
+                        <a class="link link--inverse" href="https://medium.com/itnext/kubernetes-on-raspberry-pi-and-bgp-load-balancing-with-unifi-dream-machine-pro-d5b94b6cfe99">this article</a>,
+                        which you may enjoy if you are interested in Internet plumbing. The source code is on
+                        <a class="link link--inverse" href="https://github.com/cagataygurturk/homepage">GitHub</a>.
                     </p>
                 </div>
             </div>
@@ -435,23 +371,6 @@ constexpr std::string_view INDEX_HTML = R"html(<!DOCTYPE html>
         </div>
     </section>
 
-    <section class="projects" aria-labelledby="projects-heading">
-        <div class="grid">
-            <div class="panel">
-                <div class="row">
-                    <div class="panel__figure sm-4 md-2 lg-4">
-                        <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M31 16l-7 7-1.41-1.41L28.17 16l-5.58-5.59L24 9l7 7zM1 16l7-7 1.41 1.41L3.83 16l5.58 5.59L8 23l-7-7z"/><path d="M12.419 25.484L17.639 6l1.932.518L14.351 26l-1.932-.516z"/></svg>
-                    </div>
-                    <div class="panel__body sm-4 md-6 lg-12">
-                        <h2 id="projects-heading" class="expressive-heading-03">Source code</h2>
-                        <a class="btn" href="https://github.com/cagataygurturk/homepage" rel="nofollow">View on GitHub
-                            <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M26 28H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10v2H6v20h20V16h2v10a2 2 0 0 1-2 2Z"/><path d="M20 2v2h6.59L17 13.59 18.41 15 28 5.41V12h2V2Z"/></svg>
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
 </main>
 
 <script>
