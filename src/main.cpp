@@ -33,7 +33,10 @@ int main() {
       std::make_unique<homepage::services::MetricsService>();
   metricsService->start();
 
-  // Force WebSocket controller registration
+  // Controllers take the MetricsService by reference, so they are created
+  // and registered by hand instead of Drogon's automatic registration.
+  static auto home_controller =
+      std::make_shared<homepage::controllers::HomeController>(*metricsService);
   static auto ws_controller =
       std::make_shared<homepage::controllers::MetricsWebSocket>(
           *metricsService);
@@ -47,7 +50,7 @@ int main() {
   // Configure server
   app().addListener(config.getAddress(), config.getPort());
 
-  // Controllers auto-register their routes via WS_PATH_LIST
+  app().registerController(home_controller);
   app().registerController(ws_controller);
 
   // Set document root for static files if needed

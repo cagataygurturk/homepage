@@ -24,7 +24,7 @@ CPMAddPackage(
         GIT_TAG v1.9.8
         OPTIONS
         "BUILD_ORM OFF"
-        "BUILD_CTL OFF"
+        "BUILD_CTL ON"
         "BUILD_EXAMPLES OFF"
         "BUILD_TESTING OFF"
         "BUILD_DOC OFF"
@@ -43,6 +43,9 @@ file(GLOB_RECURSE SOURCES
 
 # Create the executable
 add_executable(homepage ${SOURCES})
+
+# Compile the CSP views in views/ into C++ with drogon_ctl at build time
+drogon_create_views(homepage ${CMAKE_CURRENT_SOURCE_DIR}/views ${CMAKE_CURRENT_BINARY_DIR}/views)
 
 # Set include directories for the target - now using src as the base
 target_include_directories(homepage PRIVATE

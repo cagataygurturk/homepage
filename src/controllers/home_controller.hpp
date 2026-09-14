@@ -2,13 +2,17 @@
 
 #include <drogon/HttpController.h>
 
+#include "services/metrics_service.hpp"
+
 using namespace drogon;
 
 namespace homepage::controllers {
 
-class HomeController : public HttpController<HomeController> {
+// Renders the CSP view in views/home.csp with the latest metrics snapshot,
+// so the page shows real values before the WebSocket connects.
+class HomeController : public HttpController<HomeController, false> {
  public:
-  HomeController();
+  explicit HomeController(services::MetricsService& metricsService);
 
   METHOD_LIST_BEGIN
   // Route for homepage
@@ -19,7 +23,7 @@ class HomeController : public HttpController<HomeController> {
              std::function<void(const HttpResponsePtr&)>&& callback) const;
 
  private:
-  HttpResponsePtr cached_response_;
+  services::MetricsService& metricsService_;
 };
 
 }  // namespace homepage::controllers

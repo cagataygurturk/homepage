@@ -1,10 +1,4 @@
-#pragma once
-
-#include <string_view>
-
-namespace homepage::templates {
-
-constexpr std::string_view INDEX_HTML = R"html(<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -344,7 +338,7 @@ constexpr std::string_view INDEX_HTML = R"html(<!DOCTYPE html>
             <div class="row">
                 <div class="band__label sm-4 md-2 lg-4 body-long-01">
                     <h2 id="metrics-heading" class="heading-01">Live metrics</h2>
-                    <p>Node <span id="node-name">--</span></p>
+                    <p>Node <span id="node-name">[[node_name]]</span></p>
                     <p>
                         <span id="ws-status" class="status" role="status" aria-live="polite">
                             <span class="status__dot" aria-hidden="true"></span>
@@ -354,18 +348,18 @@ constexpr std::string_view INDEX_HTML = R"html(<!DOCTYPE html>
                 </div>
                 <div class="metric sm-4 md-2 lg-4">
                     <h3 id="cpu-heading" class="heading-01">CPU usage</h3>
-                    <div class="metric__value expressive-heading-04"><span id="cpu-usage">--</span><span class="body-long-01">%</span></div>
+                    <div class="metric__value expressive-heading-04"><span id="cpu-usage">[[cpu_usage]]</span><span class="body-long-01">%</span></div>
                     <div class="progress" role="progressbar" aria-labelledby="cpu-heading" aria-valuemin="0" aria-valuemax="100">
-                        <div id="cpu-bar" class="progress__bar"></div>
+                        <div id="cpu-bar" class="progress__bar" style="width: [[cpu_usage]]%"></div>
                     </div>
                 </div>
                 <div class="metric sm-4 md-2 lg-4">
                     <h3 class="heading-01">CPU temperature</h3>
-                    <div class="metric__value expressive-heading-04"><span id="temperature">--</span><span class="body-long-01">°C</span></div>
+                    <div class="metric__value expressive-heading-04"><span id="temperature">[[cpu_temperature]]</span><span class="body-long-01">°C</span></div>
                 </div>
                 <div class="metric sm-4 md-2 lg-4">
                     <h3 class="heading-01">Fan speed</h3>
-                    <div class="metric__value expressive-heading-04"><span id="fan-speed">--</span><span class="body-long-01">RPM</span></div>
+                    <div class="metric__value expressive-heading-04"><span id="fan-speed">[[fan_speed]]</span><span class="body-long-01">RPM</span></div>
                 </div>
             </div>
         </div>
@@ -453,6 +447,4 @@ constexpr std::string_view INDEX_HTML = R"html(<!DOCTYPE html>
 </script>
 
 </body>
-</html>)html";
-
-}  // namespace homepage::templates
+</html>

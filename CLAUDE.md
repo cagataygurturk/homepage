@@ -36,8 +36,6 @@ compresses responses.
 │   │   └── metrics_websocket.hpp    # Real-time metrics WebSocket
 │   ├── services/
 │   │   └── metrics_service.hpp      # System metrics collection
-│   ├── templates/
-│   │   └── index_template.hpp       # HTML template rendering
 │   └── utils/
 │       └── config.hpp               # Environment configuration
 ├── src/                      # Implementation files
@@ -48,6 +46,8 @@ compresses responses.
 │   │   └── metrics_service_mac.cpp     # macOS-specific metrics
 │   ├── utils/
 │   └── main.cpp             # Application entry point
+├── views/
+│   └── index.csp            # Drogon CSP view for the page, compiled by drogon_ctl at build time
 └── kubernetes/              # K8s deployment manifests
 ```
 
@@ -73,7 +73,9 @@ compresses responses.
 
 #### 3. HomeController
 
-- Serves the main HTML page with embedded JavaScript
+- Renders the `home` CSP view with the latest metrics snapshot (node name, CPU, temperature, fan) so the page
+  shows real values before the WebSocket connects; values are HTML-escaped via `HttpViewData::htmlTranslate`
+- Takes `MetricsService` by reference and is registered manually like the WebSocket controller
 - WebSocket client implementation for real-time metrics display
 - Responsive web interface for viewing system metrics
 
@@ -135,7 +137,8 @@ compresses responses.
 ### CMake Configuration
 
 - **C++20 standard** with modern features
-- **Drogon features**: Minimal build (ORM, CTL, examples disabled)
+- **Drogon features**: Minimal build (ORM and examples disabled); `drogon_ctl` is built because it compiles the
+  CSP views (`drogon_create_views` in CMakeLists.txt generates `build/views/home.{h,cc}`)
 - **TLS**: Disabled in Drogon (handled by ingress-nginx)
 - **Static linking**: spdlog header-only, Drogon static
 - **Optimization**: Release builds with stripped binaries
@@ -244,8 +247,8 @@ make clean          # Clean build artifacts
 
 ### Controller Registration
 
-- WebSocket controllers with custom constructors require manual registration
-- Use `WebSocketController<T, false>` to disable auto-creation
+- Controllers with custom constructors require manual registration
+- Use `HttpController<T, false>` / `WebSocketController<T, false>` to disable auto-creation
 - Register via `app().registerController(controller_instance)`
 
 ### Platform Compatibility
